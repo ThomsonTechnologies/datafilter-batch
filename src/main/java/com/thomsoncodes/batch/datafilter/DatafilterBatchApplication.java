@@ -27,7 +27,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
 @SpringBootApplication
-//@EnableScheduling
+@EnableScheduling
 public class DatafilterBatchApplication implements CommandLineRunner{
 	public static final Logger LOG = LogManager.getLogger(DatafilterBatchApplication.class);
 	
@@ -113,7 +113,7 @@ public class DatafilterBatchApplication implements CommandLineRunner{
 	}
 	
 
-//	@Scheduled(cron = "*/10 * * * * *")
+	@Scheduled(cron = "*/10 * * * * *")
 	public void batchScheduler() {
 		LOG.info("---Beginning of batchScheduler()---");
 				
