@@ -110,7 +110,7 @@ public class BatchConfiguration {
                 .reader(dataFilterItemReader())
                 .processor(dataFilterItemProcessor())
                 .writer(dataFilterWriter())
-                .listener(new StopListener())
+//                .listener(new StopListener())
                 .listener(new StepStartStopListener())                
                 .build();
     }
