@@ -13,6 +13,7 @@ import org.springframework.batch.core.configuration.JobRegistry;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.configuration.support.JobRegistryBeanPostProcessor;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.launch.JobLauncher;
@@ -43,7 +44,6 @@ import com.thomsoncodes.batch.datafilter.listener.StopListener;
 
 @Configuration
 @EnableBatchProcessing
-//@EnableScheduling
 public class BatchConfiguration {
 	
 	public static final Logger LOG = LogManager.getLogger(BatchConfiguration.class);
@@ -73,8 +73,8 @@ public class BatchConfiguration {
 	@Autowired
 	private JobExplorer jobExplorer;
 	
-	@Autowired
-	private JobRegistry jobRegistry;
+//	@Autowired
+//	private JobRegistry jobRegistry;
 	
 	long jobExecutionId;
 	
@@ -86,11 +86,11 @@ public class BatchConfiguration {
 	private JobParameters jobParameter;
 	
 //	@Bean
-//	public JobRegistryBeanPostProcessor jobRegistryBeanPostProcessor() {
-//	    JobRegistryBeanPostProcessor postProcessor = new JobRegistryBeanPostProcessor();
-//	    postProcessor.setJobRegistry(jobRegistry);
-//	    return postProcessor;
-//	}
+//	   public JobRegistryBeanPostProcessor jobRegistryBeanPostProcessor() {
+//	       JobRegistryBeanPostProcessor postProcessor = new JobRegistryBeanPostProcessor();
+//	       postProcessor.setJobRegistry(jobRegistry);
+//	       return postProcessor;
+//	   }
 	
 	
     @Bean
@@ -110,7 +110,7 @@ public class BatchConfiguration {
                 .reader(dataFilterItemReader())
                 .processor(dataFilterItemProcessor())
                 .writer(dataFilterWriter())
-                .listener(new StopListener())
+               // .listener(new StopListener())
                 .listener(new StepStartStopListener())                
                 .build();
     }
@@ -145,36 +145,5 @@ public class BatchConfiguration {
 
         return writer;
     }
-    
-//    @Scheduled(cron = "* * * * * *")
-//	public void batchScheduler() {
-//		LOG.info("---Beginning of batchScheduler()---");
-//				
-//		if(isRunning) {
-//			try {
-//				LOG.info("....stopping the job!");
-//				
-////				jobRepository.get
-////				jobOperator
-////				jobExplorer
-////				jobRegistry.
-//				
-//				LOG.info("-----------> 2");				
-//				jobExecutionId = jobRepository.getLastJobExecution("dataFilterJob", jobParameter).getId();
-//				LOG.info("##### ExecutionID-2: " + jobExecutionId);
-//				
-//				this.isRunning = false;
-//				this.jobOperator.stop(jobExecutionId);
-//				
-//			} catch (NoSuchJobExecutionException | JobExecutionNotRunningException e) {
-//				
-//				this.isRunning = true;
-//				LOG.info("Error in Stopping job!!");
-//				e.printStackTrace();
-//			}
-//		}
-//		
-//		LOG.info("---End of batchScheduler()---");
-//	}
-        
+            
 }

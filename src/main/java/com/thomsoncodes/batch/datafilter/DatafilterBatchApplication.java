@@ -8,6 +8,7 @@ import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.JobParametersInvalidException;
 import org.springframework.batch.core.configuration.JobRegistry;
+import org.springframework.batch.core.configuration.support.JobRegistryBeanPostProcessor;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.launch.JobLauncher;
@@ -23,13 +24,17 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
+
+import com.thomsoncodes.batch.datafilter.utils.ApplicationConstants;
 
 @SpringBootApplication
 @EnableScheduling
 public class DatafilterBatchApplication implements CommandLineRunner{
 	public static final Logger LOG = LogManager.getLogger(DatafilterBatchApplication.class);
+	
 	
 	@Autowired
 	private JobLauncher jobLauncher;
@@ -39,46 +44,44 @@ public class DatafilterBatchApplication implements CommandLineRunner{
 	
 	@Autowired
 	private JobRepository jobRepository;
-	
-	@Autowired
-	private JobOperator jobOperator;
-	
-	@Autowired
-	private JobExplorer jobExplorer;
-	
+ 
 	@Autowired
 	private JobRegistry jobRegistry;
 	
-	long jobExecutionId;
+	@Autowired
+	private JobOperator jobOperator;
+ 
+	@Autowired
+	private JobExplorer jobExplorer;
 	
+	private String jobName;
+	private JobParameters jobParameters;
+	private String completionStatus;
 	boolean isRunning = false;
-	boolean isNotRunning = false;
-	private String batchName;
-	private String filePath;
-	private long currentMillis = System.currentTimeMillis();
-	private JobParameters jobParameter;
-	
+	private String filePath;	
 	
 	public static void main(String[] args) {
 		SpringApplication.run(DatafilterBatchApplication.class, args);
 	}
+	
+	@Bean
+    public JobRegistryBeanPostProcessor jobRegistryBeanPostProcessor() {
+        JobRegistryBeanPostProcessor postProcessor = new JobRegistryBeanPostProcessor();
+        postProcessor.setJobRegistry(jobRegistry);
+        return postProcessor;
+    }
 
 
 	@Override
 	public void run(String... args) throws Exception {
-		LOG.info("---Beginning of run()---");		
+		LOG.info("---Beginning of run()---");
 		
 		try {
 			if(args.length == 2) {
-				batchName = args[0];
-				filePath = args[1];
+				jobName = args[0];
+				filePath = args[1];				
 				
-				jobParameter = new JobParametersBuilder()
-						.addLong("time", currentMillis)
-						.addString("inputFile", filePath)
-						.toJobParameters();
-				
-				ExitStatus exitStatus = jobController(jobParameter);
+				ExitStatus exitStatus = jobController(jobName, filePath);
 				LOG.info("Job completed with status-" + exitStatus);
 			}else {
 				LOG.info("Invalid Job Parameters!!");
@@ -91,20 +94,30 @@ public class DatafilterBatchApplication implements CommandLineRunner{
 	}
 	
 	
-	public ExitStatus jobController(JobParameters jobParameters) {
+	public ExitStatus jobController(String jobName, String fileName) {
 		LOG.info("---Beginning of jobController()---");
 		
-		Job job = this.context.getBean("dataFilterJob", Job.class);
+		Job job = this.context.getBean(jobName, Job.class);
 		ExitStatus exitStatus = ExitStatus.UNKNOWN;	
+		
+		jobParameters = new JobParametersBuilder()
+				.addLong("time", System.currentTimeMillis())
+				.addString("inputFile", fileName)
+				.toJobParameters();
 		
 		try {
 			isRunning = true;						
-			exitStatus = jobLauncher.run(job, jobParameters).getExitStatus();			
+			exitStatus = jobLauncher.run(job, jobParameters).getExitStatus();
+			
+			if(exitStatus.getExitCode().equals(ApplicationConstants.JOB_EXITSTATUS_STOPPED)) {				
+				isRunning = false;
+			}
 			
 		} catch (JobExecutionAlreadyRunningException | JobRestartException | JobInstanceAlreadyCompleteException
 				| JobParametersInvalidException e) {
 			
 			LOG.info("Error in launching job!!");
+			isRunning = false;
 			e.printStackTrace();
 		}
 		
@@ -116,17 +129,14 @@ public class DatafilterBatchApplication implements CommandLineRunner{
 	@Scheduled(cron = "*/10 * * * * *")
 	public void batchScheduler() {
 		LOG.info("---Beginning of batchScheduler()---");
-				
+		
 		if(isRunning) {
+			
 			try {
-				LOG.info("....stopping the job!");				
-				
-				LOG.info("-----------> 2");				
-				jobExecutionId = jobRepository.getLastJobExecution("dataFilterJob", jobParameter).getId();
-				LOG.info("##### ExecutionID-1: " + jobExecutionId);
-				
+				LOG.info("....stopping the job!");
+								
 				this.isRunning = false;
-				this.jobOperator.stop(jobExecutionId);
+				jobOperator.stop(jobRepository.getLastJobExecution(jobName, this.jobParameters).getId());
 				
 			} catch (NoSuchJobExecutionException | JobExecutionNotRunningException e) {
 				
@@ -134,16 +144,13 @@ public class DatafilterBatchApplication implements CommandLineRunner{
 				LOG.info("Error in Stopping job!!");
 				e.printStackTrace();
 			}
-		}
-		else {
+		}else {
+			
 			try {
 				LOG.info("Restarting the job....");
-				
-				LOG.info("-----------> 3");	
-				LOG.info("##### ExecutionID-2: " + jobExecutionId);
-				
+								
 				this.isRunning = true;
-				this.jobOperator.restart(jobExecutionId);
+				jobOperator.restart(jobRepository.getLastJobExecution(jobName, this.jobParameters).getId());
 				
 			} catch (JobInstanceAlreadyCompleteException | NoSuchJobExecutionException | NoSuchJobException
 					| JobRestartException | JobParametersInvalidException e) {
@@ -152,10 +159,14 @@ public class DatafilterBatchApplication implements CommandLineRunner{
 				LOG.info("Error in Restarting the job!!");
 				e.printStackTrace();
 			}
-		}
+		}		
 		
 		LOG.info("---End of batchScheduler()---");
 	}
 
+	@Scheduled(cron = "*/15 * * * * *")
+	public void batchScheduler2() {
+		LOG.info("---=========test scheduler=========---");
+	}
 
 }
